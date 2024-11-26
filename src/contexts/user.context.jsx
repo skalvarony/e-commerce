@@ -1,42 +1,58 @@
-// Import necessary functions from React
-import { createContext, useState, useEffect } from "react";
+import { createContext, useEffect, useReducer } from "react";
 
-// Import authentication utilities from Firebase
+import { createAction } from "../utils/reducer/reducer.utils";
+
 import {
   onAuthStateChangedListener,
   createUserDocumentFromAuth,
 } from "../utils/firebase/firebase.utils";
 
-// Create a UserContext with default values
 export const UserContext = createContext({
   setCurrentUser: () => null,
   currentUser: null,
 });
 
-// Define the UserProvider component
+export const USER_ACTION_TYPES = {
+  SET_CURRENT_USER: "SET_CURRENT_USER",
+};
+
+const INITIAL_STATE = {
+  currentUser: null,
+};
+
+const userReducer = (state, action) => {
+  const { type, payload } = action;
+
+  switch (type) {
+    case USER_ACTION_TYPES.SET_CURRENT_USER:
+      return { ...state, currentUser: payload };
+    default:
+      throw new Error(`Unhandled type ${type} in userReducer`);
+  }
+};
+
 export const UserProvider = ({ children }) => {
-  // Initialize state to hold the current user
-  const [currentUser, setCurrentUser] = useState(null);
+  const [{ currentUser }, dispatch] = useReducer(userReducer, INITIAL_STATE);
 
-  // Value to be passed to the context consumers
-  const value = { currentUser, setCurrentUser };
+  const setCurrentUser = (user) =>
+    dispatch(createAction(USER_ACTION_TYPES.SET_CURRENT_USER, user));
 
-  // Effect to run on component mount for authentication listener
   useEffect(() => {
-    // Listen for auth state changes (login/logout)
     const unsubscribe = onAuthStateChangedListener((user) => {
       if (user) {
-        // If user exists, create/update their document in Firestore
         createUserDocumentFromAuth(user);
       }
-      // Update the currentUser state with the authenticated user
       setCurrentUser(user);
     });
 
-    // Cleanup function to unsubscribe from the listener on unmount
     return unsubscribe;
   }, []);
 
-  // Provide the context value to child components
+  console.log(currentUser);
+
+  const value = {
+    currentUser,
+  };
+
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
